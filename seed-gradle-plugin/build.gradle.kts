@@ -23,6 +23,10 @@ tasks.test {
     useJUnit()
 }
 
+tasks.withType<Jar>().configureEach {
+    from(layout.projectDirectory.file("../LICENSE")) { into("META-INF") }
+}
+
 gradlePlugin {
     plugins {
         register("roomSeed") {
@@ -43,6 +47,13 @@ mavenPublishing {
         name.set("Room Seed")
         description.set("Prepares Room seed database inputs for Android application variants.")
         url.set(repositoryUrl)
+        licenses {
+            license {
+                name.set("MIT")
+                url.set("https://opensource.org/license/mit")
+                distribution.set("repo")
+            }
+        }
         developers {
             developer {
                 id.set("cyclops-top")
