@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Room 2 + 3 Seed Demo</string>
+    <string name="dictionary">Dictionary · Room 2 FTS4</string>
+    <string name="library">Books · Room 3 FTS5</string>
+    <string name="dictionary_hint">Word or definition</string>
+    <string name="library_hint">Title or author</string>
+    <string name="search">Search</string>
+    <string name="loading">Loading…</string>
+    <string name="no_entries">No matching dictionary entries.</string>
+    <string name="no_books">No matching books.</string>
+    <string name="search_error">Could not read the prepackaged database.</string>
+</resources>

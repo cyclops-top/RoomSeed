@@ -1,0 +1,4 @@
+database: top.cyclops.roomseed.demo.dictionary.DictionaryDatabase
+databaseFilePath: databases/dictionary.db
+files:
+  - '**/*.jsonl'

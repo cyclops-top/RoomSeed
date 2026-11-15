@@ -1,0 +1,4 @@
+database: top.cyclops.roomseed.demo.room3.LibraryDatabase
+databaseFilePath: databases/library.db
+files:
+  - '**/*.json'
