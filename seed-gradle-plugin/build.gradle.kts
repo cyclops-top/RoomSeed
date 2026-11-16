@@ -72,7 +72,12 @@ mavenPublishing {
 
 // Keep the native extension reproducible from the published sources artifact.
 tasks.withType<Jar>().configureEach {
-    if (name == "sourcesJar") from("src/main/native") { into("native") }
+    if (name == "sourcesJar") {
+        from("src/main/native") { into("native") }
+        // Resources are included by the publishing plugin; native binaries belong
+        // only in the runtime jar, not in the sources artifact.
+        exclude("**/*.dylib", "**/*.so", "**/*.dll", "**/*.a", "**/*.lib")
+    }
 }
 
 val nativeTargets = mapOf(
