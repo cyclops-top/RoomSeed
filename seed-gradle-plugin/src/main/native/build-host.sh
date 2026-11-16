@@ -69,7 +69,10 @@ data="$ICU_PREFIX/lib/libicudata.a"
 if [[ "$target" == MinGW && ! -f "$i18n" ]]; then
   i18n="$ICU_PREFIX/lib/libsicuin.a"
   uc="$ICU_PREFIX/lib/libsicuuc.a"
-  data="$ICU_PREFIX/lib/libsicudt.a"
+  # MinGW installs the full data archive in bin; lib contains stubdata only.
+  data="$ICU_PREFIX/bin/libsicudt.a"
+  test -f "$data"
+  test "$(wc -c < "$data")" -gt 1000000
 fi
 "$cc" "${flags[@]}" -O2 -DU_STATIC_IMPLEMENTATION -I"$SQLITE_INCLUDE" -I"$ICU_PREFIX/include" \
   "$source_dir/extension.c" "$i18n" \
