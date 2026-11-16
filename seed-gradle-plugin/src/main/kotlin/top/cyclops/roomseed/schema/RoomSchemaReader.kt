@@ -157,7 +157,9 @@ internal object RoomSchemaReader {
         val sql = resolveDdl(
             node.field("createSql"), "CREATE VIRTUAL TABLE IF NOT EXISTS `$TABLE` USING $version(", TABLE, name,
         )
-        return SchemaFtsTable(name, version, sql, columns, contentName, syncTriggers, languageIdColumn)
+        return SchemaFtsTable(name, version, sql, columns, contentName, syncTriggers, languageIdColumn,
+            options.field("tokenizer").optionalText().orEmpty(),
+            options.field("tokenizerArgs").optionalArray().map { it.text() })
     }
 
     private fun readFtsTriggers(

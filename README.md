@@ -179,3 +179,71 @@ Gradle 插件使用 AndroidX `BundledSQLiteDriver` 及其预编译的 JVM 原生
 ## 许可证
 
 [MIT](LICENSE)
+
+
+## 0.1.1：FTS4 ICU 本地验证
+
+本快照保留 `BundledSQLiteDriver 2.7.1`，通过原生 SQLite 扩展注册 FTS4 `icu`。
+原样执行 Room 导出的建表 SQL，不改写 tokenizer、参数或 identity hash。
+FTS4 的 simple、porter、unicode61、icu 可在同一数据库混用；FTS5 使用 SQLite
+内置 tokenizer，不提供自定义 FTS5 ICU。Room 本身不提供 ICU 二进制实现。
+
+当前 ICU 原生包仅支持 **macOS arm64（Apple Silicon）**，静态包含 ICU 78.3
+及完整数据，不依赖消费机器安装 Homebrew。其他平台仍可使用原有 tokenizer，
+ICU 能力检测会明确报错。本地快照不是多平台正式发行版。
+原生库约 33 MiB；它是构建依赖，不会自动打入 Android APK。
+
+在消费项目 `settings.gradle.kts` 的 `pluginManagement.repositories` 中添加
+`mavenLocal()`，然后使用：
+
+```kotlin
+plugins {
+    id("top.cyclops.room-seed") version "0.1.1"
+}
+```
+
+本仓库 demo 使用 included build；本地发布命令为
+`./gradlew -p seed-gradle-plugin test publishToMavenLocal`。
+
+### 独立 FTS 表与自定义同步
+
+没有 `contentEntity` 的 FTS 表不自动同步业务表。默认 SQL 应显式写入 FTS 表，
+例如 `INSERT INTO question_fts(rowid, body) SELECT id, body FROM question`，
+字段映射由消费项目提供，且避免同时触发同步造成重复写入。
+`INSERT INTO question_fts(question_fts) VALUES ('rebuild')` 仅从 FTS 表自身内容重建，
+不会从业务表回填。
+
+如果导入过程依赖自定义触发器，可在同一 seed SQL 中先创建触发器、再插入业务数据，
+最后删除这些导入专用触发器。触发器在创建之后的语句中生效；此前已有数据仍需显式回填。
+当前严格校验仍拒绝最终数据库中未在 Room schema 声明的额外触发器；
+本快照没有放宽校验或实现持久自定义触发器配置。应用运行时触发器由消费项目负责。
+
+### 原生实现与维护
+
+`seed-gradle-plugin/src/main/native` 保留 SQLite 3.50.4 的官方 FTS3/4 ICU
+实现及 tokenizer 接口，增加扩展注册入口；注册后恢复原 tokenizer 注册开关。
+SQLite 代码采用原文件中的公有领域声明，ICU 许可证随 jar 放在 `native/ICU-LICENSE.txt`。
+macOS arm64 可用 `sh seed-gradle-plugin/src/main/native/build-macos-arm64.sh` 重建；
+需要 clang、SQLite SDK 头文件及 ICU 78.3 静态库，`ICU_PREFIX` 可指定安装目录。
+正式跨平台发行前仍需各平台构建、最低系统版本及原生加载验证。
+
+
+### 多平台开发状态
+
+加载器现支持 `macos-aarch64`、`macos-x86_64`、`linux-aarch64`、
+`linux-x86_64`、`windows-x86_64` 五个平台路径，识别 JVM 的 amd64/x86_64
+和 arm64/aarch64 别名。Linux 目标是 glibc，musl 不在支持范围内。
+
+统一构建入口：`bash seed-gradle-plugin/src/main/native/build-host.sh`。
+默认从固定提交构建 ICU 78.3 静态库及完整数据；已有相同版本静态库时可设置
+`ICU_PREFIX`，SQLite 头文件目录可由 `SQLITE_INCLUDE` 指定。
+Windows 使用 MSYS2 MINGW64，构建脚本静态链接 GCC/C++ 运行库。
+
+`.github/workflows/native-icu.yml` 在五种宿主上分别构建和执行完整 JVM 测试，
+全部通过后汇总为 `room-seed-multiplatform` artifact。
+运行 `./gradlew -p seed-gradle-plugin jar -PrequireAllNativePlatforms=true`
+会检查五种原生库齐全，否则失败。此任务不能代替各平台执行测试。
+当前本地仅验证 macOS arm64；其他平台和最低系统版本仍待 CI 实测。
+
+当前分发仍将现有原生资源打入一个 jar；尚未实现按宿主自动解析独立 Maven 原生包。
+因此本地 snapshot 不会声称已携带未构建的平台库，多平台 CI 汇总包会包含全部五种库。

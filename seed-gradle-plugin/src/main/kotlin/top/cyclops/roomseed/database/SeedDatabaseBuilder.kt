@@ -96,6 +96,7 @@ internal object SeedDatabaseBuilder {
                 db.query("PRAGMA foreign_keys") == listOf(listOf("1")),
                 "Foreign keys are disabled",
             )
+            checkTokenizers(db, plan, databaseFile)
             db.transaction {
                 if (createSchema) createSchema(db, plan)
                 val originalDefinitions = if (seedFiles.any { it.format == "sql" }) schemaDefinitions(db) else null
@@ -148,6 +149,29 @@ internal object SeedDatabaseBuilder {
                     db.query("PRAGMA integrity_check") == listOf(listOf("ok")),
                     "SQLite integrity check failed",
                 )
+            }
+        }
+    }
+
+    internal fun checkTokenizers(db: SqliteDatabase, plan: SchemaPlan, database: Path) {
+        for (fts in plan.ftsTables) {
+            val tokenizer = fts.tokenizer.ifEmpty {
+                if (fts.version == FtsVersion.FTS4) "simple" else "unicode61"
+            }
+            fun literal(value: String) = "'" + value.replace("'", "''") + "'"
+            val configuration = if (fts.version == FtsVersion.FTS4) {
+                (listOf(tokenizer) + fts.tokenizerArgs).joinToString(" ", transform = ::literal)
+            } else literal((listOf(tokenizer) + fts.tokenizerArgs).joinToString(" "))
+            try {
+                db.execute("CREATE VIRTUAL TABLE temp.roomseed_tokenizer_probe USING ${fts.version}(body, tokenize=$configuration)", "Probing tokenizer")
+                db.execute("INSERT INTO temp.roomseed_tokenizer_probe(body) VALUES ('中文搜索')", "Probing tokenizer input")
+                db.query("SELECT rowid FROM temp.roomseed_tokenizer_probe WHERE body MATCH '中文'")
+            } catch (failure: SqliteException) {
+                throw SqliteException("Database '$database', table '${fts.name}', ${fts.version} tokenizer '$tokenizer': capability check failed. " +
+                    "FTS4 ICU requires a RoomSeed native package for this host; host=${System.getProperty("os.name")}/${System.getProperty("os.arch")}. " +
+                    "FTS5 ICU is not built in. Check tokenizer arguments and native package availability. ${failure.message}", failure)
+            } finally {
+                db.execute("DROP TABLE IF EXISTS temp.roomseed_tokenizer_probe", "Removing tokenizer probe")
             }
         }
     }

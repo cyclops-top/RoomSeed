@@ -16,10 +16,10 @@ internal class SqliteDatabase private constructor(private val db: SQLiteConnecti
         private const val OPEN_READ_WRITE = 2
         private const val OPEN_CREATE = 4
 
-        fun open(file: Path, readOnly: Boolean = false): SqliteDatabase {
+        fun open(file: Path, readOnly: Boolean = false, enableIcu: Boolean = true): SqliteDatabase {
             val flags = if (readOnly) OPEN_READ_ONLY else OPEN_READ_WRITE or OPEN_CREATE
             return try {
-                SqliteDatabase(BundledSQLiteDriver().open(file.toAbsolutePath().toString(), flags))
+                SqliteDatabase((if (enableIcu) IcuExtension.driver() else BundledSQLiteDriver()).open(file.toAbsolutePath().toString(), flags))
             } catch (failure: SQLiteException) {
                 throw SqliteException("Opening database '$file': ${failure.message}", failure)
             }

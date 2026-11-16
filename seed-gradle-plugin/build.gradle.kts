@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "top.cyclops"
-version = "0.1.0"
+version = "0.1.1"
 
 kotlin {
     jvmToolchain(17)
@@ -65,7 +65,32 @@ mavenPublishing {
             url.set(repositoryUrl)
             connection.set("scm:git:$repositoryUrl.git")
             developerConnection.set("scm:git:ssh://git@github.com/cyclops-top/RoomSeed.git")
-            tag.set("v$version")
+            tag.set("$version")
         }
     }
+}
+
+// Keep the native extension reproducible from the published sources artifact.
+tasks.withType<Jar>().configureEach {
+    if (name == "sourcesJar") from("src/main/native") { into("native") }
+}
+
+val nativeTargets = mapOf(
+    "macos-aarch64" to "libroomseedicu.dylib",
+    "macos-x86_64" to "libroomseedicu.dylib",
+    "linux-aarch64" to "libroomseedicu.so",
+    "linux-x86_64" to "libroomseedicu.so",
+    "windows-x86_64" to "roomseedicu.dll",
+)
+val verifyNativeDistribution by tasks.registering {
+    doLast {
+        nativeTargets.forEach { (platform, library) ->
+            check(file("src/main/resources/native/$platform/$library").isFile) {
+                "Missing ICU binary for $platform. Download the tested Native ICU workflow artifacts before producing a multi-platform distribution."
+            }
+        }
+    }
+}
+if (providers.gradleProperty("requireAllNativePlatforms").orNull == "true") {
+    tasks.named("processResources") { dependsOn(verifyNativeDistribution) }
 }

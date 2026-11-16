@@ -19,6 +19,8 @@ internal data class SchemaFtsTable(
     val contentTable: String?,
     val triggers: List<SchemaTrigger>,
     val languageIdColumn: String?,
+    val tokenizer: String = "",
+    val tokenizerArgs: List<String> = emptyList(),
 )
 
 internal enum class FtsVersion(val shadowSuffixes: List<String>) {

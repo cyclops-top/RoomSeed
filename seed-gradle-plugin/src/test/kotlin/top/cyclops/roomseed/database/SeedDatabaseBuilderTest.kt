@@ -21,6 +21,42 @@ class SeedDatabaseBuilderTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
 
     @Test
+    fun icuChineseSearchAndMixedTokenizersSurviveReopen() {
+        val file = temporaryFolder.root.toPath().resolve("icu.db")
+        SqliteDatabase.open(file).use { db ->
+            for (tokenizer in listOf("simple", "porter", "unicode61", "icu")) {
+                db.execute("CREATE VIRTUAL TABLE $tokenizer USING fts4(body, tokenize=$tokenizer)", "Creating $tokenizer")
+                db.execute("INSERT INTO $tokenizer(rowid, body) VALUES (1, '中文搜索 数据库')", "Importing Chinese")
+            }
+        }
+        SqliteDatabase.open(file).use { db ->
+            assertEquals(listOf(listOf("1")), db.query("SELECT rowid FROM icu WHERE icu MATCH '中文'"))
+            db.execute("UPDATE icu SET body='北京大学' WHERE rowid=1", "Updating Chinese")
+            assertTrue(db.query("SELECT rowid FROM icu WHERE icu MATCH '中文'").isEmpty())
+            assertEquals(listOf(listOf("1")), db.query("SELECT rowid FROM icu WHERE icu MATCH '北京大学'"))
+            db.execute("INSERT INTO icu(icu) VALUES ('integrity-check')", "Checking ICU index")
+        }
+    }
+
+    @Test
+    fun missingIcuReportsDatabaseTableAndRemedy() {
+        val file = temporaryFolder.root.toPath().resolve("missing-icu.db")
+        val table = top.cyclops.roomseed.schema.SchemaFtsTable(
+            "question_fts", top.cyclops.roomseed.schema.FtsVersion.FTS4,
+            "", emptyList(), null, emptyList(), null, "icu",
+        )
+        val plan = SchemaPlan(1, "hash", emptyList(), emptyList(), listOf(table))
+        SqliteDatabase.open(file, enableIcu = false).use { db ->
+            val failure = assertThrows(SqliteException::class.java) {
+                SeedDatabaseBuilder.checkTokenizers(db, plan, file)
+            }
+            for (part in listOf("missing-icu.db", "question_fts", "icu", "native package")) {
+                assertTrue(failure.message.orEmpty(), failure.message.orEmpty().contains(part))
+            }
+        }
+    }
+
+    @Test
     fun buildsAndReopensDemoSchema() {
         val plan = demoPlan()
         val output = temporaryFolder.root.toPath().resolve("catalog.db")
@@ -158,6 +194,7 @@ class SeedDatabaseBuilderTest {
 
     @Test
     fun importsStandaloneFtsRowsWithOptionalRowId() {
+        verifyStandaloneFtsRows("FTS4", "`body` TEXT NOT NULL, tokenize=icu")
         verifyStandaloneFtsRows("FTS5", "`body`, tokenize=`unicode61`")
         verifyStandaloneFtsRows("FTS4", "`body` TEXT NOT NULL, languageid=`lang`", "lang")
     }
@@ -195,7 +232,7 @@ class SeedDatabaseBuilderTest {
         Files.writeString(
             seedDirectory.resolve("notes.jsonl"),
             """
-            {"rowid": 12, "body": "First note"$languageValue}
+            {"rowid": 12, "body": "First note 中文搜索"$languageValue}
             {"body": "Second note"}
             """.trimIndent(),
         )
@@ -208,6 +245,9 @@ class SeedDatabaseBuilderTest {
                 if (languageId == null) listOf(listOf("12"), listOf("13")) else listOf(listOf("13")),
                 db.query("SELECT rowid FROM notes WHERE notes MATCH 'note' ORDER BY rowid"),
             )
+            if (ddl.contains("tokenize=icu")) {
+                assertEquals(listOf(listOf("12")), db.query("SELECT rowid FROM notes WHERE notes MATCH '中文'"))
+            }
             if (languageId != null) {
                 assertEquals(
                     listOf(listOf("12")),

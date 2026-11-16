@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "91414cfcdfd176319a3395cef86f6ee6",
+    "identityHash": "d8100e48255647dfd70dc565b9f1aa93",
     "entities": [
       {
         "tableName": "entries",
@@ -30,7 +30,7 @@
       },
       {
         "tableName": "entries_fts",
-        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`word` TEXT NOT NULL, `definition` TEXT NOT NULL, content=`entries`)",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`word` TEXT NOT NULL, `definition` TEXT NOT NULL, tokenize=icu, content=`entries`)",
         "fields": [
           {
             "fieldPath": "word",
@@ -51,7 +51,7 @@
         },
         "ftsVersion": "FTS4",
         "ftsOptions": {
-          "tokenizer": "simple",
+          "tokenizer": "icu",
           "tokenizerArgs": [],
           "contentTable": "entries",
           "languageIdColumnName": "",
@@ -70,7 +70,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '91414cfcdfd176319a3395cef86f6ee6')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd8100e48255647dfd70dc565b9f1aa93')"
     ]
   }
 }
