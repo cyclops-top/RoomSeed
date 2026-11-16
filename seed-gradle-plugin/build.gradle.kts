@@ -77,7 +77,6 @@ tasks.withType<Jar>().configureEach {
 
 val nativeTargets = mapOf(
     "macos-aarch64" to "libroomseedicu.dylib",
-    "macos-x86_64" to "libroomseedicu.dylib",
     "linux-aarch64" to "libroomseedicu.so",
     "linux-x86_64" to "libroomseedicu.so",
     "windows-x86_64" to "roomseedicu.dll",

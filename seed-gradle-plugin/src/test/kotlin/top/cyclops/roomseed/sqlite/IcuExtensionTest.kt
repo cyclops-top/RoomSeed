@@ -11,7 +11,7 @@ class IcuExtensionTest {
             assertEquals("linux-aarch64/libroomseedicu.so", IcuExtension.resourcePath("Linux", arch))
         }
         for (arch in listOf("amd64", "x86_64")) {
-            assertEquals("macos-x86_64/libroomseedicu.dylib", IcuExtension.resourcePath("Mac OS X", arch))
+            assertNull(IcuExtension.resourcePath("Mac OS X", arch))
             assertEquals("linux-x86_64/libroomseedicu.so", IcuExtension.resourcePath("Linux", arch))
             assertEquals("windows-x86_64/roomseedicu.dll", IcuExtension.resourcePath("Windows 11", arch))
         }

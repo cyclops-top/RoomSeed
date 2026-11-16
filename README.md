@@ -230,8 +230,8 @@ macOS arm64 可用 `sh seed-gradle-plugin/src/main/native/build-macos-arm64.sh` 
 
 ### 多平台开发状态
 
-加载器现支持 `macos-aarch64`、`macos-x86_64`、`linux-aarch64`、
-`linux-x86_64`、`windows-x86_64` 五个平台路径，识别 JVM 的 amd64/x86_64
+加载器现支持 `macos-aarch64`、`linux-aarch64`、
+`linux-x86_64`、`windows-x86_64` 四个平台路径，识别 JVM 的 amd64/x86_64
 和 arm64/aarch64 别名。Linux 目标是 glibc，musl 不在支持范围内。
 
 统一构建入口：`bash seed-gradle-plugin/src/main/native/build-host.sh`。
@@ -239,19 +239,19 @@ macOS arm64 可用 `sh seed-gradle-plugin/src/main/native/build-macos-arm64.sh` 
 `ICU_PREFIX`，SQLite 头文件目录可由 `SQLITE_INCLUDE` 指定。
 Windows 使用 MSYS2 MINGW64，构建脚本静态链接 GCC/C++ 运行库。
 
-`.github/workflows/native-icu.yml` 在五种宿主上分别构建和执行完整 JVM 测试，
+`.github/workflows/native-icu.yml` 在四种宿主上分别构建和执行完整 JVM 测试，
 全部通过后汇总为 `room-seed-multiplatform` artifact。
 运行 `./gradlew -p seed-gradle-plugin jar -PrequireAllNativePlatforms=true`
-会检查五种原生库齐全，否则失败。此任务不能代替各平台执行测试。
+会检查四种原生库齐全，否则失败。此任务不能代替各平台执行测试。
 当前本地仅验证 macOS arm64；其他平台和最低系统版本仍待 CI 实测。
 
 当前分发仍将现有原生资源打入一个 jar；尚未实现按宿主自动解析独立 Maven 原生包。
-因此本地 snapshot 不会声称已携带未构建的平台库，多平台 CI 汇总包会包含全部五种库。
+因此本地 snapshot 不会声称已携带未构建的平台库，多平台 CI 汇总包会包含全部四种库。
 
 
 ### 标签自动发布
 
-推送 `X.Y.Z` 标签会触发 Native ICU 工作流；五个平台全部编译测试成功、
+推送 `X.Y.Z` 标签会触发 Native ICU 工作流；四个平台全部编译测试成功、
 汇总包测试成功后，自动签名并发布到 Maven Central。发布版本取标签名。
 手动运行和 PR 只构建测试，不发布。已有 Central 版本不能覆盖，请使用新版本号。
 发布密钥只在最后的发布步骤可用，不传给各平台编译任务。
@@ -267,3 +267,5 @@ ICU 仅缓存成功编译安装的 `build/native-host/install`，不缓存密钥
 （含 ICU 固定提交、编译选项和 MinGW 修复）。不使用宽松的 restore-key 回退。
 命中后跳过 ICU 全量编译，但每次仍重新编译扩展并运行全部测试。
 PR 只读取缓存；首次运行、配置改变或缓存被清理时自动完整构建。
+
+macOS Intel 不再支持：当前 BundledSQLiteDriver 2.7.1 不提供该平台的 SQLite JNI 库。macOS 请使用 Apple Silicon 和 arm64 JVM。

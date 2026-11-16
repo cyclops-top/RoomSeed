@@ -6,7 +6,7 @@ work="$source_dir/../../../build/native-host"
 mkdir -p "$work"
 case "$(uname -s)/$(uname -m)" in
   Darwin/arm64) platform=macos-aarch64; filename=libroomseedicu.dylib; target=MacOSX ;;
-  Darwin/x86_64) platform=macos-x86_64; filename=libroomseedicu.dylib; target=MacOSX ;;
+  Darwin/x86_64) echo "macOS Intel is unsupported by BundledSQLiteDriver 2.7.1" >&2; exit 1 ;;
   Linux/x86_64) platform=linux-x86_64; filename=libroomseedicu.so; target=Linux ;;
   Linux/aarch64) platform=linux-aarch64; filename=libroomseedicu.so; target=Linux ;;
   MINGW*/x86_64) platform=windows-x86_64; filename=roomseedicu.dll; target=MinGW ;;

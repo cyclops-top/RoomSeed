@@ -17,6 +17,10 @@ internal class SqliteDatabase private constructor(private val db: SQLiteConnecti
         private const val OPEN_CREATE = 4
 
         fun open(file: Path, readOnly: Boolean = false, enableIcu: Boolean = true): SqliteDatabase {
+            if (System.getProperty("os.name").startsWith("Mac", ignoreCase = true) &&
+                System.getProperty("os.arch") in listOf("x86_64", "amd64")) {
+                throw SqliteException("Opening database '$file': macOS Intel is not supported by RoomSeed's BundledSQLiteDriver 2.7.1. Use macOS Apple Silicon with an arm64 JVM, Linux arm64/x64, or Windows x64.")
+            }
             val flags = if (readOnly) OPEN_READ_ONLY else OPEN_READ_WRITE or OPEN_CREATE
             return try {
                 SqliteDatabase((if (enableIcu) IcuExtension.driver() else BundledSQLiteDriver()).open(file.toAbsolutePath().toString(), flags))

@@ -25,7 +25,7 @@ jobs:
   native:
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(inputs.platform == 'windows-x86_64' && '{"include":[{"runner":"windows-2022","platform":"windows-x86_64"}]}' || '{"include":[{"runner":"macos-15","platform":"macos-aarch64"},{"runner":"macos-15-intel","platform":"macos-x86_64"},{"runner":"ubuntu-24.04","platform":"linux-x86_64"},{"runner":"ubuntu-24.04-arm","platform":"linux-aarch64"},{"runner":"windows-2022","platform":"windows-x86_64"}]}') }}
+      matrix: ${{ fromJSON(inputs.platform == 'windows-x86_64' && '{"include":[{"runner":"windows-2022","platform":"windows-x86_64"}]}' || '{"include":[{"runner":"macos-15","platform":"macos-aarch64"},{"runner":"ubuntu-24.04","platform":"linux-x86_64"},{"runner":"ubuntu-24.04-arm","platform":"linux-aarch64"},{"runner":"windows-2022","platform":"windows-x86_64"}]}') }}
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4

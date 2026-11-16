@@ -26,7 +26,7 @@ internal object IcuExtension {
         }
         val os = osName.lowercase(java.util.Locale.ROOT)
         return when {
-            os.startsWith("mac") -> "macos-$arch/libroomseedicu.dylib"
+            os.startsWith("mac") && arch == "aarch64" -> "macos-$arch/libroomseedicu.dylib"
             os == "linux" -> "linux-$arch/libroomseedicu.so"
             os.startsWith("windows") && arch == "x86_64" -> "windows-$arch/roomseedicu.dll"
             else -> null
