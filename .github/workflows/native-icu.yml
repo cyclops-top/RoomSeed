@@ -36,12 +36,25 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' || github.ref_type == 'tag' }}
       - uses: msys2/setup-msys2@v2
         if: runner.os == 'Windows'
         with:
           msystem: MINGW64
           update: true
           install: git make curl unzip mingw-w64-x86_64-gcc
+      - name: Fingerprint ICU toolchain and build configuration
+        id: icu-key
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: echo "key=$(bash seed-gradle-plugin/src/main/native/cache-key.sh)" >> "$GITHUB_OUTPUT"
+      - name: Restore ICU installation
+        id: icu-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: seed-gradle-plugin/build/native-host/install
+          key: icu-v1-${{ matrix.platform }}-${{ steps.icu-key.outputs.key }}
       - name: Build Unix extension
         if: runner.os != 'Windows'
         shell: bash
@@ -50,6 +63,12 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: bash seed-gradle-plugin/src/main/native/build-host.sh
+      - name: Save successfully built ICU installation
+        if: steps.icu-cache.outputs.cache-hit != 'true' && github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          path: seed-gradle-plugin/build/native-host/install
+          key: ${{ steps.icu-cache.outputs.cache-primary-key }}
       - name: Test actual host binary
         shell: bash
         run: ./gradlew -p seed-gradle-plugin test --no-daemon
@@ -73,6 +92,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' || github.ref_type == 'tag' }}
       - uses: actions/download-artifact@v4
         with:
           pattern: icu-*

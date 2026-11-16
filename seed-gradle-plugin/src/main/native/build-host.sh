@@ -12,6 +12,12 @@ case "$(uname -s)/$(uname -m)" in
   MINGW*/x86_64) platform=windows-x86_64; filename=roomseedicu.dll; target=MinGW ;;
   *) echo "Unsupported native build host" >&2; exit 1 ;;
 esac
+cache_key="$(bash "$source_dir/cache-key.sh")"
+if [[ -z "${ICU_PREFIX:-}" && -f "$work/install/.roomseed-cache-key" ]] &&
+   [[ "$(cat "$work/install/.roomseed-cache-key")" == "$cache_key" ]]; then
+  ICU_PREFIX="$work/install"
+  echo "Reusing verified ICU installation ($cache_key)"
+fi
 if [[ -z "${ICU_PREFIX:-}" ]]; then
   if [[ ! -d "$work/icu/.git" ]]; then
     git clone --depth 1 --branch release-78.3 https://github.com/unicode-org/icu.git "$work/icu"
@@ -35,6 +41,7 @@ if [[ -z "${ICU_PREFIX:-}" ]]; then
       --enable-static --disable-shared --disable-tests --disable-samples
     make -j "${BUILD_JOBS:-4}"
     make install
+    printf '%s\n' "$cache_key" > "$ICU_PREFIX/.roomseed-cache-key"
   )
 fi
 grep -q 'U_ICU_VERSION "78.3"' "$ICU_PREFIX/include/unicode/uvernum.h"

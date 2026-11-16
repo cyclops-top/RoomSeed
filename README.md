@@ -257,3 +257,13 @@ Windows 使用 MSYS2 MINGW64，构建脚本静态链接 GCC/C++ 运行库。
 发布密钥只在最后的发布步骤可用，不传给各平台编译任务。
 需要仓库 Secrets：MAVEN_CENTRAL_USERNAME、MAVEN_CENTRAL_PASSWORD、
 SIGNING_KEY_ID、SIGNING_PASSWORD、SIGNING_KEYRING_BASE64。
+
+
+### CI 缓存
+
+Gradle 使用 `gradle/actions/setup-gradle` 缓存依赖和可复用状态。
+ICU 仅缓存成功编译安装的 `build/native-host/install`，不缓存密钥、构建中间目录
+或发布结果。缓存键包含系统/架构、runner 镜像版本、C/C++ 编译器版本以及构建脚本
+（含 ICU 固定提交、编译选项和 MinGW 修复）。不使用宽松的 restore-key 回退。
+命中后跳过 ICU 全量编译，但每次仍重新编译扩展并运行全部测试。
+PR 只读取缓存；首次运行、配置改变或缓存被清理时自动完整构建。
