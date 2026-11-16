@@ -45,16 +45,22 @@ jobs:
           msystem: MINGW64
           update: true
           install: git make curl unzip mingw-w64-x86_64-gcc
-      - name: Fingerprint ICU toolchain and build configuration
-        id: icu-key
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Fingerprint Unix ICU toolchain
+        if: runner.os != 'Windows'
+        id: icu-key-unix
+        shell: bash
+        run: echo "key=$(bash seed-gradle-plugin/src/main/native/cache-key.sh)" >> "$GITHUB_OUTPUT"
+      - name: Fingerprint Windows ICU toolchain
+        if: runner.os == 'Windows'
+        id: icu-key-windows
+        shell: msys2 {0}
         run: echo "key=$(bash seed-gradle-plugin/src/main/native/cache-key.sh)" >> "$GITHUB_OUTPUT"
       - name: Restore ICU installation
         id: icu-cache
         uses: actions/cache/restore@v4
         with:
           path: seed-gradle-plugin/build/native-host/install
-          key: icu-v1-${{ matrix.platform }}-${{ steps.icu-key.outputs.key }}
+          key: icu-v1-${{ matrix.platform }}-${{ steps.icu-key-unix.outputs.key || steps.icu-key-windows.outputs.key }}
       - name: Build Unix extension
         if: runner.os != 'Windows'
         shell: bash
