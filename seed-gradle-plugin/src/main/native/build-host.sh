@@ -17,6 +17,15 @@ if [[ -z "${ICU_PREFIX:-}" ]]; then
     git clone --depth 1 --branch release-78.3 https://github.com/unicode-org/icu.git "$work/icu"
   fi
   test "$(git -C "$work/icu" rev-parse HEAD)" = 21d1eb0f306e1141c10931e914dfc038c06121da
+  # ICU 78.3 MinGW config overrides ICULIBS_* without the static "s" prefix,
+  # so host tools incorrectly search for -licutu instead of -lsicutu.
+  # Keep the upstream archive names and repair only the linker references.
+  if [[ "$target" == MinGW ]]; then
+    for config in "$work/icu/icu4c/source/config/mh-mingw" "$work/icu/icu4c/source/config/mh-mingw64"; do
+      sed 's/-l$(ICUPREFIX)/-l$(STATIC_PREFIX_WHEN_USED)$(ICUPREFIX)/g' "$config" > "$config.roomseed"
+      mv "$config.roomseed" "$config"
+    done
+  fi
   ICU_PREFIX="$work/install"
   mkdir -p "$work/icu-build"
   (
