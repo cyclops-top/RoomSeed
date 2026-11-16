@@ -130,21 +130,30 @@ jobs:
         shell: bash
         env:
           KEYRING: ${{ secrets.SIGNING_KEYRING_BASE64 }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: |
           umask 077
           test -n "$KEYRING"
           printf '%s' "$KEYRING" | base64 --decode > "$RUNNER_TEMP/roomseed-signing.gpg"
+          python3 - <<'PYTHON'
+          import os
+          from pathlib import Path
+          def escape(s):
+              return ''.join('\\u%04x' % ord(c) for c in s)
+          values = {'signing.keyId': os.environ['SIGNING_KEY_ID'],
+                    'signing.password': os.environ['SIGNING_PASSWORD'],
+                    'signing.secretKeyRingFile': os.environ['RUNNER_TEMP'] + '/roomseed-signing.gpg'}
+          Path('seed-gradle-plugin/gradle.properties').write_text(''.join(k + '=' + escape(v) + '\n' for k,v in values.items()))
+          PYTHON
       - name: Publish and release to Maven Central
         if: github.event_name == 'push' && github.ref_type == 'tag'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-          ORG_GRADLE_PROJECT_signing.keyId: ${{ secrets.SIGNING_KEY_ID }}
-          ORG_GRADLE_PROJECT_signing.password: ${{ secrets.SIGNING_PASSWORD }}
-          ORG_GRADLE_PROJECT_signing.secretKeyRingFile: ${{ runner.temp }}/roomseed-signing.gpg
           ORG_GRADLE_PROJECT_releaseVersion: ${{ github.ref_name }}
         run: ./gradlew -p seed-gradle-plugin publishAndReleaseToMavenCentral -PrequireAllNativePlatforms=true --no-daemon
       - name: Remove signing key
         if: always() && github.event_name == 'push' && github.ref_type == 'tag'
         shell: bash
-        run: rm -f "$RUNNER_TEMP/roomseed-signing.gpg"
+        run: rm -f "$RUNNER_TEMP/roomseed-signing.gpg" seed-gradle-plugin/gradle.properties

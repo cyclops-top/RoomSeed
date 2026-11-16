@@ -1,0 +1,110 @@
+name: Publish existing native build
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Verified Native ICU run ID
+        required: true
+        type: string
+      version:
+        description: Existing version tag (X.Y.Z)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: native-icu-refs/tags/${{ inputs.version }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify source run and successful native tests
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.run_id }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, re, subprocess
+          run_id=os.environ['SOURCE_RUN']; version=os.environ['RELEASE_VERSION']; repo=os.environ['REPO']
+          assert run_id.isdigit() and re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+',version)
+          def api(path):
+              return json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/{path}']))
+          run=api(f'actions/runs/{run_id}')
+          assert run['event']=='push' and run['head_branch']==version and run['path']=='.github/workflows/native-icu.yml'
+          commit=api(f'commits/{version}')['sha']
+          assert commit==run['head_sha'], 'Tag no longer matches verified build'
+          jobs=api(f'actions/runs/{run_id}/jobs?per_page=100')['jobs']
+          for platform in ['macos-aarch64','linux-aarch64','linux-x86_64','windows-x86_64']:
+              assert any(j['conclusion']=='success' and j['name'].endswith(platform+')') for j in jobs), platform
+          assert any(step['name']=='Test and package distribution' and step['conclusion']=='success' for j in jobs for step in j['steps'])
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('sha='+commit+'\n')
+          PYTHON
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id }}
+          pattern: icu-*
+          path: native-artifacts
+      - name: Collect verified platforms
+        shell: bash
+        run: |
+          for artifact in native-artifacts/icu-*; do
+            platform="${artifact##*/icu-}"
+            mkdir -p "seed-gradle-plugin/src/main/resources/native/$platform"
+            cp "$artifact"/* "seed-gradle-plugin/src/main/resources/native/$platform/"
+          done
+      - name: Test and package distribution
+        run: ./gradlew -p seed-gradle-plugin test jar -PrequireAllNativePlatforms=true --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: room-seed-multiplatform
+          path: seed-gradle-plugin/build/libs/*.jar
+
+      - name: Validate release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.version }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+      - name: Prepare signing key
+        shell: bash
+        env:
+          KEYRING: ${{ secrets.SIGNING_KEYRING_BASE64 }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          umask 077
+          test -n "$KEYRING"
+          printf '%s' "$KEYRING" | base64 --decode > "$RUNNER_TEMP/roomseed-signing.gpg"
+          python3 - <<'PYTHON'
+          import os
+          from pathlib import Path
+          def escape(s):
+              return ''.join('\\u%04x' % ord(c) for c in s)
+          values = {'signing.keyId': os.environ['SIGNING_KEY_ID'],
+                    'signing.password': os.environ['SIGNING_PASSWORD'],
+                    'signing.secretKeyRingFile': os.environ['RUNNER_TEMP'] + '/roomseed-signing.gpg'}
+          Path('seed-gradle-plugin/gradle.properties').write_text(''.join(k + '=' + escape(v) + '\n' for k,v in values.items()))
+          PYTHON
+      - name: Publish and release to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_releaseVersion: ${{ inputs.version }}
+        run: ./gradlew -p seed-gradle-plugin publishAndReleaseToMavenCentral -PrequireAllNativePlatforms=true --no-daemon
+      - name: Remove signing key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/roomseed-signing.gpg" seed-gradle-plugin/gradle.properties
