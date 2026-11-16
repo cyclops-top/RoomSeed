@@ -247,3 +247,13 @@ Windows 使用 MSYS2 MINGW64，构建脚本静态链接 GCC/C++ 运行库。
 
 当前分发仍将现有原生资源打入一个 jar；尚未实现按宿主自动解析独立 Maven 原生包。
 因此本地 snapshot 不会声称已携带未构建的平台库，多平台 CI 汇总包会包含全部五种库。
+
+
+### 标签自动发布
+
+推送 `X.Y.Z` 标签会触发 Native ICU 工作流；五个平台全部编译测试成功、
+汇总包测试成功后，自动签名并发布到 Maven Central。发布版本取标签名。
+手动运行和 PR 只构建测试，不发布。已有 Central 版本不能覆盖，请使用新版本号。
+发布密钥只在最后的发布步骤可用，不传给各平台编译任务。
+需要仓库 Secrets：MAVEN_CENTRAL_USERNAME、MAVEN_CENTRAL_PASSWORD、
+SIGNING_KEY_ID、SIGNING_PASSWORD、SIGNING_KEYRING_BASE64。

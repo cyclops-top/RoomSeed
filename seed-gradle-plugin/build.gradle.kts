@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "top.cyclops"
-version = "0.1.1"
+version = providers.gradleProperty("releaseVersion").orElse("0.1.1").get()
 
 kotlin {
     jvmToolchain(17)
